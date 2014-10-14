@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">SocialPhoto</string>
+    <string name="title_section1">New Search</string>
+    <string name="search">Search</string>
+    <string name="search_hint">Type photo for search</string>
+    <string name="noResult">No result</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="Share_to">Share to </string>
+    <string name="action_settings">Settings</string>
+    <string name="photo_name">Photo name for testing</string>
+    <string name="photoview_description">May show private information</string>
+    <string name="photo_title">Title</string>
+    <string name="photo_tags">Tags</string>
+    <string name="photo_description">Description</string>
+    <string name="photo_latitude">Latitude</string>
+    <string name="photo_longitude">Longitude</string>
+    <string name="searchProgressText">Searching&#8230;</string>
+    <string name="searchWithNoResult">Sorry, no matched result was found.</string>
+
+</resources>
