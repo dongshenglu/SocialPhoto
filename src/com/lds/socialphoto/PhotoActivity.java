@@ -30,31 +30,25 @@ public class PhotoActivity extends Activity {
 	private TextView mTag;
 	private TextView mLatitude;
 	private TextView mLongitude;
-	private Bitmap mBitmapImg = null;
 	private ImageView mPhotoImage;
 	private ProgressDialog mProgressDialog = null;
 	private ImageButton mShareButton = null;
 	private String mLargeUrl = PHOTO_EMPTY;
-	
-	public PhotoActivity() {
-	}
+	private LoadImage loadImageTask;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);  
 		setContentView(R.layout.activity_photo);
-			
-		Bundle extras = getIntent().getExtras();
-		
+		Bundle extras = getIntent().getExtras();	
 		// check from the saved Instance
-		mPhotoUri = (savedInstanceState == null) ? null : (Uri) savedInstanceState
-	        .getParcelable("photoUri");
+		mPhotoUri = (savedInstanceState == null) ? null : 
+			(Uri)savedInstanceState.getParcelable("photoUri");
 
 	    // Or passed from the other activity
 	    if (extras != null) {
 	    	mPhotoUri = extras.getParcelable("photoUri");
 	    }
-		
 		mTitle = (TextView) findViewById(R.id.title);
 		mDescription = (TextView) findViewById(R.id.description);
 		mTag = (TextView) findViewById(R.id.tag);
@@ -71,127 +65,104 @@ public class PhotoActivity extends Activity {
 		mProgressDialog.setMessage( "Loading..." );
 		mProgressDialog.setCancelable(false);
 		mProgressDialog.setIndeterminate(true);
-
 		updateUI();
-		
 	}
 
 	protected void onShareButtonSelected(View v) {
-
 		Intent shareIntent = new Intent();
 		shareIntent.setAction(Intent.ACTION_SEND);
 		shareIntent.putExtra(Intent.EXTRA_TEXT, mLargeUrl);
 		shareIntent.setType("text/plain");
-		
 		this.startActivity(Intent.createChooser(shareIntent, "Share To"));
-		
 	}
 
 	private void updateUI() {
-
 		String[] projection = { _ID, TITLE, DESCRIPTION, TAGS, LATITUDE, LONGITUDE, LARGE_URL };
-		
-	    Cursor cursor = getContentResolver().query(mPhotoUri, projection, null, null,
-	        null);
+	    Cursor cursor = getContentResolver().query(mPhotoUri, projection, null, null, null);
 	    if (cursor != null) {
 	      cursor.moveToFirst();
 	      String title = cursor.getString(cursor.getColumnIndexOrThrow(TITLE));
-	      if ( !title.isEmpty() ) {
+	      if ( !title.isEmpty() ) { 
 	    	  mTitle.setText( getResources().getString(R.string.photo_title) + ": " + title);
-	      } else {
-	    	  mTitle.setVisibility(View.GONE);
-	      }
+	      } else { mTitle.setVisibility(View.GONE); }
 	      
 	      String description = cursor.getString(cursor.getColumnIndexOrThrow(DESCRIPTION));
-	      if ( !description.isEmpty() ) {
+	      if ( !description.isEmpty() ) { 
 	    	  mDescription.setText( getResources().getString(R.string.photo_description) + ": " + description);
-	      } else {
-	    	  mDescription.setVisibility(View.GONE);
-	      }
+	      } else { mDescription.setVisibility(View.GONE); }
 	      
 	      String tags = cursor.getString(cursor.getColumnIndexOrThrow(TAGS));
-	      if ( !tags.isEmpty() ) {
-	    	  mTag.setText( getResources().getString(R.string.photo_tags) + ": " + tags);
-	      } else {
-	    	  mTag.setVisibility(View.GONE);
-	      }
+	      if ( !tags.isEmpty() ) { mTag.setText( getResources().getString(R.string.photo_tags) + ": " + tags);} 
+	      else { mTag.setVisibility(View.GONE); }
 
 	      double latitude = cursor.getDouble(cursor.getColumnIndexOrThrow(LATITUDE));
-	      if ( latitude == 0.0 ){
-	    	  mLatitude.setVisibility(View.GONE);
-	      } else {
-	    	  mLatitude.setText( getResources().getString(R.string.photo_latitude) + ": " + latitude);
-	      }
+	      if ( latitude == 0.0 ){ mLatitude.setVisibility(View.GONE); } 
+	      else { mLatitude.setText( getResources().getString(R.string.photo_latitude) + ": " + latitude); }
 	      
 	      double longitude = cursor.getDouble(cursor.getColumnIndexOrThrow(LONGITUDE));
-	      if ( longitude == 0.0 ) {
-	    	  mLongitude.setVisibility(View.GONE);
-	      } else {
-	    	  mLongitude.setText( getResources().getString(R.string.photo_longitude) + ": " + longitude);
-	      }
+	      if ( longitude == 0.0 ) { mLongitude.setVisibility(View.GONE); } 
+	      else { mLongitude.setText( getResources().getString(R.string.photo_longitude) + ": " + longitude); }
 	      
 	      mLargeUrl = cursor.getString(cursor.getColumnIndexOrThrow(LARGE_URL));
-
 	      mPhotoImage = (ImageView)findViewById(R.id.imageView1);
-	      new LoadImage().execute(mLargeUrl);
+	      loadImageTask = new LoadImage(mProgressDialog, mPhotoImage);
+	      loadImageTask.execute(mLargeUrl);
 
-			
-	      // always close the cursor
 	      cursor.close();
 	    }
 		
 	}
 
-	public class LoadImage extends AsyncTask<String, Void, Void> {
+	public static class LoadImage extends AsyncTask<String, Void, Bitmap> {
 
+		private ProgressDialog progressDlg;
+		private ImageView imageView;
+		public LoadImage(ProgressDialog progDlg, ImageView imgView) {
+			progressDlg = progDlg;
+			imageView = imgView;
+		}
+		
 		@Override
 		protected void onPreExecute() {
-			if (mProgressDialog != null)
-                mProgressDialog.show();
+			if (progressDlg != null) { progressDlg.show(); }
 		}
 		
         @Override
-        protected Void doInBackground(String... urlStrings) {
+        protected Bitmap doInBackground(String... urlStrings) {
             try {
             	URL url = new URL( urlStrings[0]);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();   
                 conn.setDoInput(true);   
                 conn.connect();     
                 InputStream is = conn.getInputStream();
-                mBitmapImg = BitmapFactory.decodeStream(is); 
-            }
-            catch (IOException e)
-            {       
-                e.printStackTrace();  
-            }
-
+                return BitmapFactory.decodeStream(is); 
+            } catch (IOException e) { e.printStackTrace(); }
             return null;   
         }
-            
+         
+        @Override
+        protected void onCancelled() {
+        	if (progressDlg != null) { progressDlg.dismiss(); }
+        	progressDlg = null;
+        	imageView = null;
+        }
+        
         @Override       
-        protected void onPostExecute(Void result) {
-            if (mProgressDialog!=null) {
-            	mProgressDialog.hide();
-            }
-            mPhotoImage.setImageBitmap(mBitmapImg);        	
+        protected void onPostExecute(Bitmap result) {
+            if (progressDlg != null) { progressDlg.hide(); }
+            if (imageView != null ) { imageView.setImageBitmap(result); }        	
         }
 	}
+
+	@Override
+	protected void onResume() { super.onResume(); }
 	
 	@Override
-	protected void onRestart() 
-	{
-		super.onRestart();
-		
-	}
-	
-	@Override
-	protected void onResume() {
-		super.onResume();
-	}
-	
-	@Override
-	protected void onPause() {
-		super.onPause();
+	protected void onPause() { 
+		super.onPause(); 
+		if ((loadImageTask != null) && (isFinishing())) {
+			loadImageTask.cancel(false);
+		}
 	}
 	
 	@Override
@@ -202,6 +173,4 @@ public class PhotoActivity extends Activity {
 			mProgressDialog = null;
 		}
 	}
-	
-	
 }

@@ -20,8 +20,11 @@ import android.support.v4.app.ListFragment;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -47,85 +50,88 @@ import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.Toast;
 
-
 public class MainActivity extends ActionBarActivity implements
 		ActionBar.OnNavigationListener {
 	
 	public static final String PREFS_NAME = "SocialPhotoPrefFile";
 	public static final String PREFS_DROPLISTITEM = "dropListItem";
 	public static final String PREFS_DROPLISTITEM_COUNT = "dropListItemCount";
-	public static final String SAVE_KEY_DROPLIST = "droplist";
-	
+	public static final String SAVE_KEY_DROPLIST = "droplist";	
 	public static final String TAG_DEBUG = "SocialPhoto: ";
+	public static final boolean DEBUG_ENABLE = false;
 	
 	/**
 	 * The serialization (saved instance state) Bundle key representing the
-	 * current dropdown position.
+	 * current drop down position.
 	 */
 	private static final String STATE_SELECTED_NAVIGATION_ITEM = "selected_navigation_item";
 	private static ArrayAdapter<String> mSpinnerAdapter;
-	private static List<CharSequence> mItemList;
-	
+	private static List<String> sItemList;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 
-		// Set up the action bar to show a dropdown list.
+		// Set up the action bar to show a drop down list.
 		final ActionBar actionBar = getSupportActionBar();
 		actionBar.setDisplayShowTitleEnabled(false);
 		actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_LIST); 
 		
 		if (savedInstanceState != null && savedInstanceState.containsKey(SAVE_KEY_DROPLIST)) {			
-			mItemList = savedInstanceState.getCharSequenceArrayList(SAVE_KEY_DROPLIST);
+			sItemList = savedInstanceState.getStringArrayList(SAVE_KEY_DROPLIST);
 		} else if (savedInstanceState == null) {
-			mItemList = 
-					new ArrayList<CharSequence>(Arrays.asList(new String[] { getString(R.string.title_section1) }));
+			sItemList = new ArrayList<String>(Arrays.asList(new String[] { getString(R.string.title_section1) }));
 			
 			// Restore preferences
 		    SharedPreferences settings = getSharedPreferences(PREFS_NAME, 0);
 		    int count = settings.getInt(PREFS_DROPLISTITEM_COUNT, 0);
 		    for (int ii = 1; ii <= count; ++ii) {
 		    	String item = settings.getString(PREFS_DROPLISTITEM + ii, PHOTO_EMPTY );
-		    	mItemList.add(item);
+		    	sItemList.add(item);
 		      }
 		}
 		
-		mSpinnerAdapter = new ArrayAdapter(actionBar.getThemedContext(),
-				android.R.layout.simple_list_item_1,
-				android.R.id.text1, mItemList );
-		
-		// Set up the dropdown list navigation in the action bar.
-		actionBar.setListNavigationCallbacks(
-		// Specify a SpinnerAdapter to populate the dropdown list.
-				mSpinnerAdapter, this);
-		
+		// Set up the drop down list navigation in the action bar.
+		mSpinnerAdapter = new ArrayAdapter<String>(actionBar.getThemedContext(), 
+												   android.R.layout.simple_list_item_1, 
+												   android.R.id.text1);
+		mSpinnerAdapter.addAll(sItemList);
+		actionBar.setListNavigationCallbacks(mSpinnerAdapter, this);
 	}
 	
+    @Override
+    public void onResume() { super.onResume(); }
+            
+    @Override
+    public void onPause() { 
+    	super.onPause(); 
+    }
+    
 	@Override
-	protected void onDestroy() {
+	protected void onDestroy() { 
 		super.onDestroy();
 	}
 		
 	@Override
 	public void onRestoreInstanceState(Bundle savedInstanceState) {
-		// Restore the previously serialized current dropdown position.
+		// Restore the previously serialized current drop down position.
 		if (savedInstanceState.containsKey(STATE_SELECTED_NAVIGATION_ITEM)) {
 			getSupportActionBar().setSelectedNavigationItem(
 					savedInstanceState.getInt(STATE_SELECTED_NAVIGATION_ITEM));
 		}
 		if (savedInstanceState.containsKey(SAVE_KEY_DROPLIST)) {			
-			mItemList = savedInstanceState.getCharSequenceArrayList(SAVE_KEY_DROPLIST);
+			sItemList = savedInstanceState.getStringArrayList(SAVE_KEY_DROPLIST);
 		}
 	}
 
 	@Override
 	public void onSaveInstanceState(Bundle outState) {
-		// Serialize the current dropdown position.
+		// Serialize the current drop down position.
 		outState.putInt(STATE_SELECTED_NAVIGATION_ITEM, getSupportActionBar()
 				.getSelectedNavigationIndex());
 		
-		outState.putCharSequenceArrayList(SAVE_KEY_DROPLIST, (ArrayList<CharSequence>)mItemList); 
+		outState.putStringArrayList(SAVE_KEY_DROPLIST, (ArrayList<String>)sItemList); 
 	}
 
 	@Override
@@ -151,57 +157,54 @@ public class MainActivity extends ActionBarActivity implements
 
 	@Override
 	public boolean onNavigationItemSelected(int position, long id) {
-		// When the given dropdown item is selected, show its contents in the
-		// container view.
-		getSupportFragmentManager()
-				.beginTransaction()
-				.replace(R.id.container,
-						ImageListFragment.newInstance(position + 1)).commit();
+		getSupportFragmentManager().beginTransaction().replace(R.id.container, 
+				ImageListFragment.newInstance(position + 1)).commit();
 		return true;
 	}
 	
+	private void resetActionBar() {
+		sItemList.clear();
+		sItemList.add(getString(R.string.title_section1));
+		mSpinnerAdapter.clear();
+		mSpinnerAdapter.addAll(sItemList);
+	}
 	
 	/**
 	 * A placeholder fragment containing a simple view.
 	 */
 	public static class ImageListFragment extends ListFragment 
 		implements LoaderManager.LoaderCallbacks<Cursor>,
-		GooglePlayServicesClient.ConnectionCallbacks,
-        GooglePlayServicesClient.OnConnectionFailedListener {
-		/**
-		 * The fragment argument representing the section number for this
-		 * fragment.
-		 */
-		
+				   GooglePlayServicesClient.ConnectionCallbacks,
+				   GooglePlayServicesClient.OnConnectionFailedListener {
+
 		public static enum SearchState {
 			SEARCH_NOT_START,
 			SEARCH_START,
 			SEARCH_IN_PROCESSING,
-			SERCH_FAILED,
+			SEARCH_FAILED,
+			SEARCH_CANCELLED,
+			SEARCH_STOPPED,
 			SEARCH_COMPLETE
 		}
-		
-		private SearchState mSearchState = SearchState.SEARCH_NOT_START;
 
+		private static SearchState sSearchState = SearchState.SEARCH_NOT_START;		
 		private static final String ARG_SECTION_NUMBER = "section_number";
 		private static String[] FROM = { TITLE, THUMBNAIL };
-		private static int[] TO = { R.id.photoname, R.id.thumbnail };
-		
+		private static int[] TO = { R.id.photoname, R.id.thumbnail };		
 		private SimpleCursorAdapter mAdapter;
 		
-		private String mSearchString = PHOTO_EMPTY;
-		private String mCurrentSearchKeyword = PHOTO_EMPTY;
-		private String mSavedSearchKeyword = PHOTO_EMPTY;
+		private static String sSearchString = PHOTO_EMPTY;
+		private static String sSavedSearchKeyword = PHOTO_EMPTY;		
+		private int mdropdownItemIndex = 0;
 		
-		private int mdropDownItemIndex = 0;
-		
+		private ImageButton mSearchButton;
 		private ProgressDialog mProgressDialog = null;
 		private AlertDialog mInfoDialog = null;
 		private AlertDialog.Builder mSettingDialog = null;
 		private ArrayList<Integer> mSelectedItems = new ArrayList<Integer>();
-		LocationClient mLocationClient = null;		
+
+		private LocationClient mLocationClient = null;		
 		private Location mCurrentLocation;
-		
 		
 		/**
 		 * Returns a new instance of this fragment for the given section number.
@@ -214,98 +217,62 @@ public class MainActivity extends ActionBarActivity implements
 			return fragment;
 		}
 
-		public ImageListFragment() {
-		}
+		public ImageListFragment() {}
 
-		/*
+		/**
 		 * Implementation of override virtual functions
-		 */
+		 */		
+		@Override
+	    public void onAttach(Activity activity) { super.onAttach(activity); }
+		
+		@Override
+		public void onResume() {
+			super.onResume();
+			((UIHandler) sMainActHandler).attach(this, mProgressDialog);
+		}
+		
+		@Override 
+		public void onPause() {
+			super.onPause();
+			((UIHandler) sMainActHandler).detach();
+	    	if (getActivity().isFinishing()) { 
+	    		getActivity().stopService(new Intent(getActivity(), PhotoWebService.class));
+	    		sSearchState = SearchState.SEARCH_STOPPED;
+	    		sSearchString = PHOTO_EMPTY;
+	    	}
+		}
+		
+		@Override
+	    public void onDetach() { super.onDetach(); }
 		
 		@Override
 		 public void onCreate(Bundle savedInstanceState) {
-		  super.onCreate(savedInstanceState);
-		  
+			super.onCreate(savedInstanceState);
+			setRetainInstance(true);
 		  	Bundle bundle = this.getArguments();
 		  	// start from 1
-		  	mdropDownItemIndex = bundle.getInt(ARG_SECTION_NUMBER);
-		  	mSavedSearchKeyword = PHOTO_EMPTY;
-		  	if ( mdropDownItemIndex > 1 ) {
-		  		mSavedSearchKeyword = (String)mSpinnerAdapter.getItem(mdropDownItemIndex-1);
-		  	} 
-		  	
+		  	mdropdownItemIndex = bundle.getInt(ARG_SECTION_NUMBER);
+		  	sSavedSearchKeyword = PHOTO_EMPTY;
+		  	if ( mdropdownItemIndex > 1 ) {
+		  		sSavedSearchKeyword = (String)mSpinnerAdapter.getItem(mdropdownItemIndex-1);
+		  	}		  	
 		  	if ( getActivity() != null ) {
-		  		mLocationClient = new LocationClient( getActivity(), this, this);
-		  	
+		  		mLocationClient = new LocationClient(getActivity(), this, this);		  	
 		  		buildDialogs();
-		  		
-			
 		  		getPhotos();
 		  	}
 		 }
-	    
-		private void buildDialogs() {
-			
-			mProgressDialog = new ProgressDialog( getActivity() );
-	  		mProgressDialog.setMessage( getResources().getString(R.string.searchProgressText)  );
-	  		mProgressDialog.setCancelable(false);
-	  		mProgressDialog.setIndeterminate(true);
-	  		mProgressDialog.setButton(DialogInterface.BUTTON_NEGATIVE, "Cancel", new DialogInterface.OnClickListener() {
-	  		    @Override
-	  		    public void onClick(DialogInterface dialog, int which) {
-	  		    	if ( getActivity() != null ) {
-    					getActivity().stopService( new Intent( getActivity(), PhotoService.class));
-    					mSearchState = SearchState.SEARCH_NOT_START;
-    					mCurrentSearchKeyword = PHOTO_EMPTY;
-    				}
-	  		    }
-	  		});
-
-	  		mInfoDialog = new AlertDialog.Builder( getActivity() ).create();
-	  		
-	  		boolean[] checkedItems = { true, true, true };
-	  		mSelectedItems.add(0);
-	  		mSelectedItems.add(1);
-	  		mSelectedItems.add(2);
-	  		mSettingDialog = new AlertDialog.Builder( getActivity() );
-	  		mSettingDialog.setMultiChoiceItems(R.array.setting_array, checkedItems, new DialogInterface.OnMultiChoiceClickListener() {
-	  			@Override
-	  			public void onClick(DialogInterface dialog, int which, boolean isChecked) {
-	  				if (isChecked) {
-	  					mSelectedItems.add(which);
-	  				} else if (mSelectedItems.contains(which)) { 
-	  					mSelectedItems.remove(Integer.valueOf(which));
-	  				}
-	  			}
-	  		})
-	  		.setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
-	               @Override
-	               public void onClick(DialogInterface dialog, int id) {
-	               }
-	           })
-	           .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
-	               @Override
-	               public void onClick(DialogInterface dialog, int id) {
-	               }
-	           });
-	  		
-	  		mSettingDialog.create();
-		}
 
 		@Override
-		public void onDestroyView ()
-		{	
-			if ( mLocationClient.isConnected() || mLocationClient.isConnecting() )
+		public void onDestroyView () {	
+			if ( mLocationClient.isConnected() || mLocationClient.isConnecting() ) {
 				mLocationClient.disconnect();
-			
-			if ( mSearchState == SearchState.SEARCH_IN_PROCESSING || mSearchState == SearchState.SEARCH_START )
-				getActivity().stopService( new Intent( getActivity(), PhotoService.class));
-			
+			}
 			super.onDestroyView();
 			if ( mProgressDialog != null ) {
 				mProgressDialog.dismiss();
 				mProgressDialog = null;
-			}
-			
+			}			
 			if ( mInfoDialog != null ) {
 				mInfoDialog.dismiss();
 				mInfoDialog = null;
@@ -315,74 +282,49 @@ public class MainActivity extends ActionBarActivity implements
 		@Override
 		public View onCreateView(LayoutInflater inflater, ViewGroup container,
 				Bundle savedInstanceState) {
-			
-			View rootView = inflater.inflate(R.layout.fragment_main, container,
-					false);
-			
+			View rootView = inflater.inflate(R.layout.fragment_main, container, false);
 			final EditText searchBox = (EditText) rootView.findViewById(R.id.searchBox);
-			if ( mdropDownItemIndex > 1 )
-			{
-				searchBox.setVisibility(View.GONE);
-			}
+			if ( mdropdownItemIndex > 1 ) { searchBox.setVisibility(View.GONE);}
 			  
 			searchBox.addTextChangedListener( new TextWatcher() {
 				@Override
-				public void onTextChanged(CharSequence s, int start, int before, int count) {
-					
-				}
-			
+				public void onTextChanged(CharSequence s, int start, int before, int count) {}
 				@Override
-				public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-				
-				}
-			
+				public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 				@Override
-				public void afterTextChanged(Editable s) {
-					mSearchString = s.toString();
-				}
+				public void afterTextChanged(Editable s) { sSearchString = s.toString().trim(); }
 			});
 			
 			ImageButton settingButton = (ImageButton) rootView.findViewById( R.id.searchSettings );
-			if ( mdropDownItemIndex > 1 )
-			{
+			if ( mdropdownItemIndex > 1 ) {
 				settingButton.setVisibility(View.GONE);
 			} else {
 				settingButton.setOnClickListener( new View.OnClickListener() {
 					@Override
-				    public void onClick(View v) {
-						if ( mSettingDialog != null )
-							mSettingDialog.show();
-				    }
+				    public void onClick(View v) { if ( mSettingDialog != null ) { mSettingDialog.show(); }}
 				});
 			}
 			  
-			ImageButton searchButton = (ImageButton) rootView.findViewById( R.id.searchPhoto );
-			if ( mdropDownItemIndex > 1 )
-			{
-				searchButton.setVisibility(View.GONE);
+			mSearchButton = (ImageButton) rootView.findViewById( R.id.searchPhoto );
+			if ( mdropdownItemIndex > 1 ) {
+				mSearchButton.setVisibility(View.GONE);
 			} else {
-				searchButton.setOnClickListener( new View.OnClickListener() {
+				mSearchButton.setOnClickListener( new View.OnClickListener() {
 					@Override
-				    public void onClick(View v) {
-				    	openSearch();
-				    }
+				    public void onClick(View v) { 
+						if (openSearch()) { ((ImageButton)v).setImageResource(R.drawable.search_stop);} 
+							else { ((ImageButton)v).setImageResource(android.R.drawable.ic_menu_search); }
+					}
 				});
-				
 				mLocationClient.connect();
 			}
-
 			return rootView;
 		}
 		
 		@Override
-		public void onListItemClick(ListView l, View v, int position, long id) 
-		{
-			if ( getActivity() == null ) {
-				return;
-			}
-			
+		public void onListItemClick(ListView l, View v, int position, long id) {
+			if ( getActivity() == null ) { return; }
 			Intent intent = new Intent( getActivity(), PhotoActivity.class);
-			
 			Uri photoUri = Uri.parse(CONTENT_URI + "/" + id);
 		    intent.putExtra("photoUri", photoUri);
 			getActivity().startActivity(intent);
@@ -393,17 +335,16 @@ public class MainActivity extends ActionBarActivity implements
 			String[] projection = { _ID, TITLE, THUMBNAIL, KEYWORD };
 			String selection = "KEYWORD=?";
 			CursorLoader cursorLoader = null;
-			if ( mdropDownItemIndex == 1 ) {
-				String[] selectionArgs = { mSearchString};
+			if ( mdropdownItemIndex == 1 ) {
+				String[] selectionArgs = { sSearchString};
 		    	cursorLoader = new CursorLoader( getActivity(), 
 		    		CONTENT_URI, projection, selection, selectionArgs, null );
 			}
 			else {
-				String[] selectionArgs = { mSavedSearchKeyword };
+				String[] selectionArgs = { sSavedSearchKeyword };
 				cursorLoader = new CursorLoader( getActivity(), 
 			    		CONTENT_URI, projection, selection, selectionArgs, null );
 			}
-
 		    return cursorLoader;
 		}
 
@@ -421,118 +362,193 @@ public class MainActivity extends ActionBarActivity implements
 		public void onConnectionFailed(ConnectionResult connectionResult) {
 			if (connectionResult.hasResolution()) {
 				showMessage("Location connection was failed, please try again.");
-				
-	        } else {
-	        	showMessage("Location connection was failed.");
-	        }
+	        } else { showMessage("Location connection was failed."); }
 	    }
 
 		@Override
 		public void onConnected(Bundle arg0) {
-			Toast.makeText( getActivity(), "Connected", Toast.LENGTH_SHORT).show();
+			if (DEBUG_ENABLE) {
+				Toast.makeText(getActivity(), "Connected", Toast.LENGTH_SHORT).show();
+			}
 		}
 
 		@Override
 		public void onDisconnected() {
-			Toast.makeText( getActivity(), "Disconnected. Please re-connect.",
-	                Toast.LENGTH_SHORT).show();
+			if (DEBUG_ENABLE) {
+				Toast.makeText(getActivity(), "Disconnected. Please re-connect.", Toast.LENGTH_SHORT).show();
+			}
 		}
-	    
-		/*
-		* Implementation of private functions
-		*/		
 		
-		private Handler sMainActHandler = new Handler() {
-	        
+		/**
+		* Implementation of private functions
+		*/
+		private void buildDialogs() {
+			mProgressDialog = new ProgressDialog(getActivity());
+	  		mProgressDialog.setMessage(getResources().getString(R.string.searchProgressText));
+	  		mProgressDialog.setCancelable(false);
+	  		mProgressDialog.setIndeterminate(true);
+	  		mProgressDialog.setButton(DialogInterface.BUTTON_NEGATIVE, "Cancel", new DialogInterface.OnClickListener() {
+	  		    @Override
+	  		    public void onClick(DialogInterface dialog, int which) {
+	  		    	if ( getActivity() != null ) {
+    					getActivity().stopService( new Intent( getActivity(), PhotoWebService.class));
+    					sSearchState = SearchState.SEARCH_CANCELLED;
+    					resetSearchButtonImage();
+    				}
+	  		    }
+	  		});
+
+	  		mInfoDialog = new AlertDialog.Builder( getActivity() ).create();	  		
+	  		boolean[] checkedItems = { true, true, true, false };
+	  		mSelectedItems.add(0);
+	  		mSelectedItems.add(1);
+	  		mSelectedItems.add(2);
+	  		mSelectedItems.add(3);
+	  		mSettingDialog = new AlertDialog.Builder( getActivity() );
+	  		mSettingDialog.setMultiChoiceItems(R.array.setting_array, checkedItems, 
+	  				new DialogInterface.OnMultiChoiceClickListener() {
+	  			@Override
+	  			public void onClick(DialogInterface dialog, int which, boolean isChecked) {
+	  				if (isChecked) { mSelectedItems.add(which); } 
+	  				else if (mSelectedItems.contains(which)) { mSelectedItems.remove(Integer.valueOf(which)); }
+	  			}
+	  		})
+	  		.setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
+	               @Override
+	               public void onClick(DialogInterface dialog, int id) {
+	            	   if (mSelectedItems.get(3) == 3) {
+	            		   clearNavigationDropListItem();	            		   
+	            	   }
+	               }
+	           })
+	           .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+	               @Override
+	               public void onClick(DialogInterface dialog, int id) {}
+	           });
+	  		
+	  		mSettingDialog.create();
+		}
+		
+		private void resetSearchButtonImage() {
+			mSearchButton.setImageResource(android.R.drawable.ic_menu_search);
+		}
+		
+		final private static Handler sMainActHandler = new UIHandler();
+		final static Messenger sMessenger = new Messenger(sMainActHandler);
+		private static class UIHandler extends Handler {
+        	ProgressDialog progressDialog;
+        	Context context;
+        	ImageListFragment fragment;
+			int totalPages = 2;
+        	int pageIndex = 1;
+    		String methodUrl ="";
+    		boolean isKeyWordSaved = false;
+    		
+    		public void attach(ImageListFragment listFragment, ProgressDialog progressDlg) {
+                this.fragment = listFragment;
+    			this.context = listFragment.getActivity();
+    			this.progressDialog = progressDlg;
+            }
+    		
+    		public void detach() {
+    			this.fragment = null;
+    			this.context = null;
+    			this.progressDialog = null;
+            }
+    		
+    		private void handleSearchNotFound() {
+    			sSearchState = SearchState.SEARCH_FAILED;
+    			fragment.showMessage("Sorry, no matched result was found, please check the internet connenction.");
+    		}
+    		
+			@SuppressLint("NewApi")
 			public void handleMessage( Message msg ) {
 	        	super.handleMessage( msg );
 	        	
 	        	switch ( msg.what ) {
-	        		case REQUEST_STATUS_ONE_PAGE_LOADED:
-	        			if (mProgressDialog != null)
-                            mProgressDialog.hide();
-	        			
-	        			mSearchState = SearchState.SERCH_FAILED;
-	        			if (msg.arg1 == RES_OK) {
-	        				mSearchState = SearchState.SEARCH_IN_PROCESSING;
-	        				if ( isAdded() ) {
-	        					restartLoader();
-	        				}
-	        				if ( getActivity() != null ) {
-		        				Toast.makeText(
-			        				    getActivity(), 
-			        				    "Page" +  Integer.toString(msg.arg2) + " was loaded", 
-			        				    Toast.LENGTH_LONG ).show();
-	        				}
-	        			} else if (msg.arg1 == RES_FAILED) {
-	        				showMessage("Search was failed");
-	        				mCurrentSearchKeyword = PHOTO_EMPTY;
-	        				if ( getActivity() != null ) {
-	        					getActivity().stopService( new Intent( getActivity(), PhotoService.class));
-	        				}
+	        		case REQUEST_STATUS_TOTAL_PHOTOS:
+	        			totalPages = msg.arg2;
+	        			if (totalPages == 0) {
+	        				if (progressDialog != null) { progressDialog.hide(); }
+	        				handleSearchNotFound();
+	        				break;
 	        			}
+	        			if (sSearchState == SearchState.SEARCH_CANCELLED 
+	        					|| sSearchState == SearchState.SEARCH_STOPPED) { break; }
 	        			
+	        			isKeyWordSaved = false;
+	        			pageIndex = 1;
+	        			methodUrl = (String)msg.obj;
+	        			Intent intent = new Intent( context, PhotoWebService.class );
+        				intent.putExtra(PHOTO_SEARCH_ACTION, PHOTO_SEARCH);
+        				intent.putExtra(PHOTO_SEARCH_PAGE_INDEX, pageIndex);
+        				intent.putExtra(PHOTO_SEARCH_TOTAL_PAGES, totalPages);
+        				intent.putExtra(PHOTO_SEARCH_URL, methodUrl+pageIndex);
+        				intent.putExtra( PHOTO_MESSENGER, sMessenger );
+        				context.startService(intent);        				
+        				if (fragment != null) { fragment.restartLoader(); }
 	        			break;
-	        		case REQUEST_STATUS_ALL_PAGES_LOADED:
-	        			int currentPage = msg.arg2;
-        				if ( currentPage == 1 ) {
-	        				if (mProgressDialog != null)
-	                            mProgressDialog.hide();
+	        		case REQUEST_STATUS_FIRST_PHOTO_LOADED:
+	        			if (progressDialog != null) { progressDialog.hide(); }
+        				if (!isKeyWordSaved) {
+        					isKeyWordSaved = true;
+        					sItemList.add(sSearchString);
+        					mSpinnerAdapter.notifyDataSetChanged();
+        					fragment.saveNavigationDropListItem();
         				}
-        				
-        				mSearchState = SearchState.SERCH_FAILED;
-        				if (msg.arg1 == RES_OK) {
-	        				mSearchState = SearchState.SEARCH_COMPLETE;
-	        				if ( isAdded() ) {
-	        					restartLoader();
-	        				}
-	        				
-	        				mItemList.add(mSearchString);
-	        				mSpinnerAdapter.notifyDataSetChanged();
-	        				SaveNavigationDropListItem();
-	        				
-	        				if ( getActivity() != null ) {
-		        				Toast.makeText(
-			        				    getActivity(), 
-			        				    "All pages have been loaded", 
-			        				    Toast.LENGTH_LONG ).show();
-	        				}
-	        				
-	        			} else if (msg.arg1 == RES_NO_FOUND ) {
-	        				showMessage("Sorry, no matched result was found.");
-	        			}
-        				else if (msg.arg1 == RES_FAILED) {
-	        				showMessage("Search was failed");
-	        			}
-        				
-        				mCurrentSearchKeyword = PHOTO_EMPTY;
-        				if ( getActivity() != null ) {
-        					getActivity().stopService( new Intent( getActivity(), PhotoService.class));
-        				}
+	        			break;
+	        		case REQUEST_STATUS_ONE_PAGE_LOADED:
+	        			if (sSearchState == SearchState.SEARCH_CANCELLED 
+    						|| sSearchState == SearchState.SEARCH_STOPPED) { break; }
 	        			
+	        			if (msg.arg1 == RES_OK) {	        				
+	        				sSearchState = SearchState.SEARCH_IN_PROCESSING;
+	        				if (DEBUG_ENABLE) {
+								if (context != null) {
+									Toast.makeText(
+										    context, 
+										    "Page" +  Integer.toString(pageIndex) + " was loaded", 
+										    Toast.LENGTH_LONG ).show();
+								}
+							}
+	        			} else if (msg.arg1 == RES_NO_FOUND) { handleSearchNotFound(); }
+	        			
+	        			if ( sSearchState == SearchState.SEARCH_IN_PROCESSING 
+	        					&& ++pageIndex <= totalPages ) {
+	        				intent = new Intent(context, PhotoWebService.class);
+	        				intent.putExtra(PHOTO_SEARCH_ACTION, PHOTO_SEARCH);
+	        				intent.putExtra(PHOTO_SEARCH_PAGE_INDEX, pageIndex);
+	        				intent.putExtra(PHOTO_SEARCH_TOTAL_PAGES, totalPages);
+	        				intent.putExtra(PHOTO_SEARCH_URL, methodUrl+pageIndex);
+	        				intent.putExtra(PHOTO_MESSENGER, sMessenger);
+	        				context.startService(intent);
+	        			}
+	        			break;
+	        		case REQUEST_STATUS_ALL_PAGES_LOADED: 
+        				if (msg.arg1 == RES_OK) {
+	        				sSearchState = SearchState.SEARCH_COMPLETE;
+	        				if (DEBUG_ENABLE) {
+								if (context != null) {
+									Toast.makeText(context, "All pages have been loaded", Toast.LENGTH_LONG ).show();
+								}
+							}
+	        			} else if (msg.arg1 == RES_NO_FOUND ) { handleSearchNotFound(); }        				
+        				if (context != null) { context.stopService( new Intent(context, PhotoWebService.class)); }
+        				fragment.resetSearchButtonImage();
 	        			break;
 	        		default:
 	        			break;
 	        	}
-	        	
 	        }
 	    };
-	    
-	    final Messenger sMessenger = new Messenger(sMainActHandler);
-	    
-	    private boolean openSearch()
-	    {
-	    	if ( mSearchString.isEmpty() || getActivity() == null )
+
+		private boolean openSearch() {
+	    	if (sSearchString.isEmpty() || getActivity() == null) { return false; }	    	
+	    	if ( sSearchState  == SearchState.SEARCH_START 
+	    			|| sSearchState == SearchState.SEARCH_IN_PROCESSING ) {
+	    		getActivity().stopService( new Intent( getActivity(), PhotoWebService.class));
+	    		sSearchState = SearchState.SEARCH_STOPPED;
 	    		return false;
-	    	
-	    	if ( mSearchState  == SearchState.SEARCH_START 
-	    			|| mSearchState == SearchState.SEARCH_IN_PROCESSING ) {
-	    		getActivity().stopService( new Intent( getActivity(), PhotoService.class));
-	    		if ( !mCurrentSearchKeyword.isEmpty() && mSearchState == SearchState.SEARCH_IN_PROCESSING ) {
-	    			mItemList.add(mCurrentSearchKeyword);
-    				mSpinnerAdapter.notifyDataSetChanged();
-    				SaveNavigationDropListItem();
-	    		}
 	    	}
 	    	
 	    	double longitude = 0.0;
@@ -545,39 +561,33 @@ public class MainActivity extends ActionBarActivity implements
 	    		locationEnabled = true;
 	    	}
 	    	
-	    	Intent intent = new Intent( getActivity(), PhotoService.class );
-			intent.putExtra( PHOTO_SEARCH_KEYWORD, mSearchString );
+	    	Intent intent = new Intent( getActivity(), PhotoWebService.class );
+	    	intent.putExtra("action", "fetchTotal");
+			intent.putExtra( PHOTO_SEARCH_KEYWORD, sSearchString );
+			intent.putExtra("totalPage", 5);
 			intent.putExtra( PHOTO_MESSENGER, sMessenger );
 			if (locationEnabled) {
 				intent.putExtra( PHOTO_LOCATION_ENABLED, true );
 				intent.putExtra( LATITUDE, latitude );
 				intent.putExtra( LONGITUDE, longitude );
-			} else
-			{
+			} else {
 				intent.putExtra( PHOTO_LOCATION_ENABLED, false );
 			}
-				
-			intent.putIntegerArrayListExtra( PHOTO_SEARCH_RULE, mSelectedItems );
-			
-			mCurrentSearchKeyword = mSearchString;			
-			getActivity().startService( intent );
-			
-			mSearchState = SearchState.SEARCH_START; 
-					
-			if (mProgressDialog != null)
-                mProgressDialog.show();
+			intent.putIntegerArrayListExtra( PHOTO_SEARCH_RULE, mSelectedItems );	
+			getActivity().startService( intent );			
+			sSearchState = SearchState.SEARCH_START; 					
+			if (mProgressDialog != null) { mProgressDialog.show(); }
 			
 			return true;
 	    }
 	    
-		protected void restartLoader() {
+		private void restartLoader() {
 			getLoaderManager().restartLoader( 0, null, this );
 		}
 
 		private void getPhotos() {
 			getLoaderManager().initLoader( 0, null, this );
 			mAdapter = new SimpleCursorAdapter( getActivity(), R.layout.rowlayout, null, FROM, TO, 0 );
-			
 			mAdapter.setViewBinder(new SimpleCursorAdapter.ViewBinder() {
 	            @Override
 				public boolean setViewValue(View view, Cursor cursor, int columnIndex) {
@@ -585,34 +595,28 @@ public class MainActivity extends ActionBarActivity implements
 	                	byte[] byteImage = cursor.getBlob(columnIndex);
 	                	int length = byteImage.length;
 	                	if ( length > 0 ) {
-	                		((ImageView)view).setImageBitmap(BitmapFactory.decodeByteArray( byteImage, 0,
-	                				length));
+	                		((ImageView)view).setImageBitmap(BitmapFactory.decodeByteArray(byteImage, 0, length));
 	                	}
 	                    return true; //true because the data was bound to the view
 	                }
-	                
 	                return false;
 	            }
 	        });
-			
 		    setListAdapter( mAdapter );
 		}
 
-	    void showMessage(String messsage )
-	    {
+	    private void showMessage(String messsage ) {
 	    	mInfoDialog.setMessage( messsage );
 	    	AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>() {				
 				@Override
 				protected void onPreExecute() {
-                    if (mInfoDialog != null)                    	
-                        mInfoDialog.show();
+                    if (mInfoDialog != null) { mInfoDialog.show(); }
 				}
 					
 				@Override
 				protected Void doInBackground(Void... arg0) {
-					try {
-						Thread.sleep( 3000 );
-					} catch (InterruptedException e) {
+					try { Thread.sleep( 3000 ); } 
+					catch (InterruptedException e) { 
 						e.printStackTrace();
 					}
 					return null;
@@ -620,38 +624,37 @@ public class MainActivity extends ActionBarActivity implements
 				
 				@Override
 				protected void onPostExecute(Void result) {
-                    try {
-                       
-                    } catch (IllegalArgumentException e) {
-                        e.printStackTrace();
-                    }
+                    try { mInfoDialog.dismiss();} 
+                    catch (IllegalArgumentException e) { e.printStackTrace(); }
 				}
-					
 			};
 			task.execute((Void[])null);
 	    }
 
-	    void SaveNavigationDropListItem() {
-	    	if ( getActivity() == null )
-	    		return;
-	    	
+	    private void saveNavigationDropListItem() {
+	    	if (getActivity() == null) { return; }
 	    	SharedPreferences settings = getActivity().getSharedPreferences(PREFS_NAME, 0);
 			SharedPreferences.Editor editor = settings.edit();
-			int count = mItemList.size();
-			Log.d( TAG_DEBUG, "SharePreference item count : " + count );
+			int count = sItemList.size();
+			Log.d(TAG_DEBUG, "SharePreference item count : " + count );
 			editor.putInt(PREFS_DROPLISTITEM_COUNT, count - 1 );
 			// the first item is "New search" not need to store
 			for (int ii = 1; ii < count; ++ii) {
-				editor.putString(PREFS_DROPLISTITEM + ii, mItemList.get(ii).toString() );
-				Log.d( TAG_DEBUG, "SharePreference item " + ii + " : " + mItemList.get(ii).toString() );
+				editor.putString(PREFS_DROPLISTITEM + ii, sItemList.get(ii).toString());
+				Log.d(TAG_DEBUG, "SharePreference item " + ii + " : " + sItemList.get(ii).toString());
 			}
-			  
-			// Commit the edits!
 			editor.commit();
 	    }
-
+	    
+	    private void clearNavigationDropListItem() {
+	    	if (getActivity() == null) { return; }
+	    	SharedPreferences settings = getActivity().getSharedPreferences(PREFS_NAME, 0);
+			SharedPreferences.Editor editor = settings.edit();
+			editor.clear();
+			editor.commit();
+			((MainActivity) getActivity()).resetActionBar();
+			getActivity().getContentResolver().delete(CONTENT_URI, "", null);
+	    }
 	    
 	} // ImageListFragment
-
-	
 } // MainActivity

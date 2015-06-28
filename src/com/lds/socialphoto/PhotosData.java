@@ -29,7 +29,6 @@ public class PhotosData extends SQLiteOpenHelper {
 	  
 	public PhotosData(Context context) {
 		super(context, DATABASE_NAME, null, DATABASE_VERSION);
-
 	}
 
 	@Override

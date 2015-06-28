@@ -5,5 +5,6 @@
         <item>@string/photo_title</item>
         <item>@string/photo_tags</item>
         <item>@string/photo_description</item>
+        <item>@string/photo_clear_history</item>
     </string-array>
 </resources>

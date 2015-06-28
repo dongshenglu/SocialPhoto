@@ -17,20 +17,13 @@ import android.net.Uri;
 import android.text.TextUtils;
 
 public class PhotosProvider extends ContentProvider {
-
 	private static final int PHOTOS = 10;
-	private static final int PHOTOS_ID = 20;
-	
-	private PhotosData photoData;
-	
+	private static final int PHOTOS_ID = 20;	
+	private PhotosData photoData;	
 	private static final UriMatcher sURIMatcher = new UriMatcher(UriMatcher.NO_MATCH);
-	  static {
+	static {
 	    sURIMatcher.addURI(AUTHORITY, TABLE_NAME, PHOTOS);
 	    sURIMatcher.addURI(AUTHORITY, TABLE_NAME + "/#", PHOTOS_ID);
-	  }
-	  
-	public PhotosProvider() {
-		
 	}
 
 	@Override
@@ -42,15 +35,11 @@ public class PhotosProvider extends ContentProvider {
 	@Override
 	public Cursor query(Uri uri, String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
-		
 	    SQLiteQueryBuilder queryBuilder = new SQLiteQueryBuilder();
-
 	    // check if the caller has requested a column which does not exists
 	    checkColumns(projection);
-
 	    // Set the table
 	    queryBuilder.setTables( TABLE_NAME );
-
 	    int uriType = sURIMatcher.match(uri);
 	    switch ( uriType ) {
 		    case PHOTOS:
@@ -68,17 +57,14 @@ public class PhotosProvider extends ContentProvider {
 	        selectionArgs, null, null, sortOrder);
 	    // make sure that potential listeners are getting notified
 	    cursor.setNotificationUri(getContext().getContentResolver(), uri);
-	    
 		return cursor;
 	}
 
 	@Override
-	public String getType(Uri uri) {
-		return null;
-	}
+	public String getType(Uri uri) { return null; }
 
 	@Override
-	public Uri insert(Uri uri, ContentValues values) {
+	public Uri insert(Uri uri, ContentValues values) {		
 		int uriType = sURIMatcher.match(uri);
 	    SQLiteDatabase sqlDB = photoData.getWritableDatabase();
 	    long id = 0;
@@ -115,8 +101,7 @@ public class PhotosProvider extends ContentProvider {
 	}
 
 	@Override
-	public int update(Uri uri, ContentValues values, String selection,
-			String[] selectionArgs) {
+	public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
 		int uriType = sURIMatcher.match(uri);
 	    SQLiteDatabase sqlDB = photoData.getWritableDatabase();
 	    
@@ -137,8 +122,7 @@ public class PhotosProvider extends ContentProvider {
 	}
 
 	private void checkColumns(String[] projection) {
-	    String[] available = { PHOTO_ID, TITLE, TAGS, THUMBNAIL_URL, THUMBNAIL, KEYWORD, DESCRIPTION, LATITUDE, LONGITUDE, LARGE_URL, _ID };
-	    
+	    String[] available = { PHOTO_ID, TITLE, TAGS, THUMBNAIL_URL, THUMBNAIL, KEYWORD, DESCRIPTION, LATITUDE, LONGITUDE, LARGE_URL, _ID };	    
 	    if ( projection != null ) {
 	      HashSet<String> requestedColumns = new HashSet<String>( Arrays.asList( projection ) );
 	      HashSet<String> availableColumns = new HashSet<String>( Arrays.asList( available ) );

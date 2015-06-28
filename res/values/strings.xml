@@ -17,6 +17,7 @@
     <string name="photo_description">Description</string>
     <string name="photo_latitude">Latitude</string>
     <string name="photo_longitude">Longitude</string>
+    <string name="photo_clear_history">Clear history</string>
     <string name="searchProgressText">Searching&#8230;</string>
     <string name="searchWithNoResult">Sorry, no matched result was found.</string>
 
