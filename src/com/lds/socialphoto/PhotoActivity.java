@@ -17,6 +17,7 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -136,7 +137,7 @@ public class PhotoActivity extends Activity {
                 conn.connect();     
                 InputStream is = conn.getInputStream();
                 return BitmapFactory.decodeStream(is); 
-            } catch (IOException e) { e.printStackTrace(); }
+            } catch (IOException e) { if (e.getMessage() != null) { Log.e(TAG, e.getMessage()); } }
             return null;   
         }
          

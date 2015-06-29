@@ -19,6 +19,7 @@ import android.content.Intent;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
+import android.util.Log;
 
 public class PhotosWebServiceHandler {
 
@@ -107,7 +108,7 @@ public class PhotosWebServiceHandler {
 			try {
 				messenger.send( retMsg );
 	    	} catch (RemoteException e) {
-	    		System.out.println(e.getMessage());
+	    		if (e.getMessage() != null) { Log.e(TAG, e.getMessage()); }
 	    	}
 		}
 	}
@@ -177,7 +178,9 @@ public class PhotosWebServiceHandler {
   	  			if ( photos == null ) { return 0; }
   	  			total = Integer.parseInt(photos.getString(TAG_TOTAL)); 			  
   	  		}
-  	  	} catch (JSONException e) { System.out.println(e.getMessage()); }
+  	  	} catch (JSONException e) { 
+  	  		if (e.getMessage() != null) { Log.e(TAG, e.getMessage()); } 
+  	  	}
   	  	return total;
     }
 
@@ -200,8 +203,9 @@ public class PhotosWebServiceHandler {
   	    	while ((line = reader.readLine()) != null) {
   	    		builder.append(line);
                 }
-  	        
-  	    } catch (Exception e ) { System.out.println(e.getMessage()); }
+  	    } catch (Exception e ) { 
+  	    	if (e.getMessage() != null) { Log.e(TAG, e.getMessage()); } 
+  	    }
   	    return builder.toString();
     }
     
@@ -266,7 +270,7 @@ public class PhotosWebServiceHandler {
 	  	} else { success = false; }
   			 	    	  
   	  	} catch (JSONException e) {
-  	  		System.out.println(e.getMessage());
+  	  		if (e.getMessage() != null) { Log.e(TAG, e.getMessage()); }
   	  		success = false;
   	  	}
   	  
@@ -308,8 +312,9 @@ public class PhotosWebServiceHandler {
   				  }
   			  }
   		  }
-  		  
-  	  	} catch (JSONException e) { System.out.println(e.getMessage()); }
+  	  	} catch (JSONException e) { 
+  	  		if (e.getMessage() != null) { Log.e(TAG, e.getMessage()); } 
+  	  	}
   	  	return imageUrl;
     }
 

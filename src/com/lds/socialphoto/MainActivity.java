@@ -51,7 +51,9 @@ import android.widget.SimpleCursorAdapter;
 import android.widget.Toast;
 
 public class MainActivity extends ActionBarActivity implements
-		ActionBar.OnNavigationListener {
+		ActionBar.OnNavigationListener, 
+		GooglePlayServicesClient.ConnectionCallbacks,
+		GooglePlayServicesClient.OnConnectionFailedListener {
 	
 	public static final String PREFS_NAME = "SocialPhotoPrefFile";
 	public static final String PREFS_DROPLISTITEM = "dropListItem";
@@ -67,6 +69,8 @@ public class MainActivity extends ActionBarActivity implements
 	private static final String STATE_SELECTED_NAVIGATION_ITEM = "selected_navigation_item";
 	private static ArrayAdapter<String> mSpinnerAdapter;
 	private static List<String> sItemList;
+	private LocationClient mLocationClient = null;
+	private AlertDialog mInfoDialog = null;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -98,6 +102,9 @@ public class MainActivity extends ActionBarActivity implements
 												   android.R.id.text1);
 		mSpinnerAdapter.addAll(sItemList);
 		actionBar.setListNavigationCallbacks(mSpinnerAdapter, this);
+		
+		mLocationClient = new LocationClient(this, this, this);
+		mInfoDialog = new AlertDialog.Builder(this).create();
 	}
 	
     @Override
@@ -105,7 +112,16 @@ public class MainActivity extends ActionBarActivity implements
             
     @Override
     public void onPause() { 
-    	super.onPause(); 
+    	super.onPause();
+    	if (isFinishing()) {
+    		if ( mLocationClient.isConnected() || mLocationClient.isConnecting() ) {
+				mLocationClient.disconnect();
+			}
+    		if ( mInfoDialog != null ) {
+				mInfoDialog.dismiss();
+				mInfoDialog = null;
+			}
+    	}
     }
     
 	@Override
@@ -129,8 +145,7 @@ public class MainActivity extends ActionBarActivity implements
 	public void onSaveInstanceState(Bundle outState) {
 		// Serialize the current drop down position.
 		outState.putInt(STATE_SELECTED_NAVIGATION_ITEM, getSupportActionBar()
-				.getSelectedNavigationIndex());
-		
+				.getSelectedNavigationIndex());		
 		outState.putStringArrayList(SAVE_KEY_DROPLIST, (ArrayList<String>)sItemList); 
 	}
 
@@ -162,6 +177,35 @@ public class MainActivity extends ActionBarActivity implements
 		return true;
 	}
 	
+	@Override
+	public void onConnectionFailed(ConnectionResult connectionResult) {
+		if (connectionResult.hasResolution()) {
+			showMessage("Location connection was failed, please try again.");
+        } else { showMessage("Location connection was failed."); }
+    }
+
+	@Override
+	public void onConnected(Bundle arg0) {
+		if (DEBUG_ENABLE) {
+			Toast.makeText(this, "Connected", Toast.LENGTH_SHORT).show();
+		}
+	}
+
+	@Override
+	public void onDisconnected() {
+		if (DEBUG_ENABLE) {
+			Toast.makeText(this, "Disconnected. Please re-connect.", Toast.LENGTH_SHORT).show();
+		}
+	}
+	
+	private void connectLocationService() {
+		mLocationClient.connect();
+	}
+	
+	private Location getCurrentLocation() {
+		return mLocationClient.getLastLocation();
+	}
+
 	private void resetActionBar() {
 		sItemList.clear();
 		sItemList.add(getString(R.string.title_section1));
@@ -169,13 +213,39 @@ public class MainActivity extends ActionBarActivity implements
 		mSpinnerAdapter.addAll(sItemList);
 	}
 	
+	private void showMessage(String messsage ) {
+    	mInfoDialog.setMessage( messsage );
+    	AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>() {				
+			@Override
+			protected void onPreExecute() {
+                if (mInfoDialog != null) { mInfoDialog.show(); }
+			}
+				
+			@Override
+			protected Void doInBackground(Void... arg0) {
+				try { Thread.sleep( 3000 ); } 
+				catch (InterruptedException e) { 
+					if (e.getMessage() != null) { Log.e(TAG, e.getMessage()); } 
+				}
+				return null;
+			}
+			
+			@Override
+			protected void onPostExecute(Void result) {
+                try { mInfoDialog.dismiss();} 
+                catch (IllegalArgumentException e) { 
+                	if (e.getMessage() != null) { Log.e(TAG, e.getMessage()); } 
+                }
+			}
+		};
+		task.execute((Void[])null);
+    }
+	
 	/**
 	 * A placeholder fragment containing a simple view.
 	 */
 	public static class ImageListFragment extends ListFragment 
-		implements LoaderManager.LoaderCallbacks<Cursor>,
-				   GooglePlayServicesClient.ConnectionCallbacks,
-				   GooglePlayServicesClient.OnConnectionFailedListener {
+		implements LoaderManager.LoaderCallbacks<Cursor> {
 
 		public static enum SearchState {
 			SEARCH_NOT_START,
@@ -199,11 +269,8 @@ public class MainActivity extends ActionBarActivity implements
 		
 		private ImageButton mSearchButton;
 		private ProgressDialog mProgressDialog = null;
-		private AlertDialog mInfoDialog = null;
 		private AlertDialog.Builder mSettingDialog = null;
 		private ArrayList<Integer> mSelectedItems = new ArrayList<Integer>();
-
-		private LocationClient mLocationClient = null;		
 		private Location mCurrentLocation;
 		
 		/**
@@ -255,9 +322,9 @@ public class MainActivity extends ActionBarActivity implements
 		  	sSavedSearchKeyword = PHOTO_EMPTY;
 		  	if ( mdropdownItemIndex > 1 ) {
 		  		sSavedSearchKeyword = (String)mSpinnerAdapter.getItem(mdropdownItemIndex-1);
+		  		sSavedSearchKeyword = parseSearchKeyword(sSavedSearchKeyword);
 		  	}		  	
-		  	if ( getActivity() != null ) {
-		  		mLocationClient = new LocationClient(getActivity(), this, this);		  	
+		  	if ( getActivity() != null ) {		  	
 		  		buildDialogs();
 		  		getPhotos();
 		  	}
@@ -265,17 +332,10 @@ public class MainActivity extends ActionBarActivity implements
 
 		@Override
 		public void onDestroyView () {	
-			if ( mLocationClient.isConnected() || mLocationClient.isConnecting() ) {
-				mLocationClient.disconnect();
-			}
 			super.onDestroyView();
 			if ( mProgressDialog != null ) {
 				mProgressDialog.dismiss();
 				mProgressDialog = null;
-			}			
-			if ( mInfoDialog != null ) {
-				mInfoDialog.dismiss();
-				mInfoDialog = null;
 			}			
 		}
 		
@@ -316,7 +376,7 @@ public class MainActivity extends ActionBarActivity implements
 							else { ((ImageButton)v).setImageResource(android.R.drawable.ic_menu_search); }
 					}
 				});
-				mLocationClient.connect();
+				((MainActivity)getActivity()).connectLocationService();
 			}
 			return rootView;
 		}
@@ -358,27 +418,6 @@ public class MainActivity extends ActionBarActivity implements
 			mAdapter.swapCursor(null);
 		}
 		
-		@Override
-		public void onConnectionFailed(ConnectionResult connectionResult) {
-			if (connectionResult.hasResolution()) {
-				showMessage("Location connection was failed, please try again.");
-	        } else { showMessage("Location connection was failed."); }
-	    }
-
-		@Override
-		public void onConnected(Bundle arg0) {
-			if (DEBUG_ENABLE) {
-				Toast.makeText(getActivity(), "Connected", Toast.LENGTH_SHORT).show();
-			}
-		}
-
-		@Override
-		public void onDisconnected() {
-			if (DEBUG_ENABLE) {
-				Toast.makeText(getActivity(), "Disconnected. Please re-connect.", Toast.LENGTH_SHORT).show();
-			}
-		}
-		
 		/**
 		* Implementation of private functions
 		*/
@@ -397,8 +436,7 @@ public class MainActivity extends ActionBarActivity implements
     				}
 	  		    }
 	  		});
-
-	  		mInfoDialog = new AlertDialog.Builder( getActivity() ).create();	  		
+	  		
 	  		boolean[] checkedItems = { true, true, true, false };
 	  		mSelectedItems.add(0);
 	  		mSelectedItems.add(1);
@@ -433,6 +471,21 @@ public class MainActivity extends ActionBarActivity implements
 			mSearchButton.setImageResource(android.R.drawable.ic_menu_search);
 		}
 		
+		private String parseSearchKeyword(final String searchString) {
+			String result = searchString;
+			int startPos = result.indexOf("-(");
+	  		int endPos = result.indexOf(")");
+	  		if (startPos > 0 && endPos > startPos && endPos == result.length()-1) {
+	  			boolean isAllDigit = true;
+	  			for(int ii=startPos+2; ii < endPos; ii++) {
+	  				char c = result.charAt(ii); 
+	  				 if (!(c >= '0' && c <= '9')) { isAllDigit = false; break; }
+	  			}
+	  			if (isAllDigit) { return result.substring(0, startPos); }
+	  		}	  		
+	  		return result;
+		}
+		
 		final private static Handler sMainActHandler = new UIHandler();
 		final static Messenger sMessenger = new Messenger(sMainActHandler);
 		private static class UIHandler extends Handler {
@@ -458,7 +511,23 @@ public class MainActivity extends ActionBarActivity implements
     		
     		private void handleSearchNotFound() {
     			sSearchState = SearchState.SEARCH_FAILED;
-    			fragment.showMessage("Sorry, no matched result was found, please check the internet connenction.");
+    			((MainActivity)fragment.getActivity()).showMessage(
+    					"Sorry, no matched result was found, please check the internet connenction.");
+    		}
+    		
+    		private void saveSearchKeyword() {
+    			if (!isKeyWordSaved) {
+					isKeyWordSaved = true;
+					int counter = 0;
+					for(String item: sItemList) {
+						String keyword = fragment.parseSearchKeyword(item);
+						if (keyword.equals(sSearchString)) { counter++; }
+					}
+					if (counter == 0) { sItemList.add(sSearchString); }
+						else if (counter > 0) { sItemList.add(sSearchString + "-(" + counter + ")"); }
+					mSpinnerAdapter.notifyDataSetChanged();
+					fragment.saveNavigationDropListItem();
+				}
     		}
     		
 			@SuppressLint("NewApi")
@@ -490,12 +559,7 @@ public class MainActivity extends ActionBarActivity implements
 	        			break;
 	        		case REQUEST_STATUS_FIRST_PHOTO_LOADED:
 	        			if (progressDialog != null) { progressDialog.hide(); }
-        				if (!isKeyWordSaved) {
-        					isKeyWordSaved = true;
-        					sItemList.add(sSearchString);
-        					mSpinnerAdapter.notifyDataSetChanged();
-        					fragment.saveNavigationDropListItem();
-        				}
+	        			saveSearchKeyword();
 	        			break;
 	        		case REQUEST_STATUS_ONE_PAGE_LOADED:
 	        			if (sSearchState == SearchState.SEARCH_CANCELLED 
@@ -554,7 +618,7 @@ public class MainActivity extends ActionBarActivity implements
 	    	double longitude = 0.0;
 	    	double latitude = 0.0;
 	    	boolean locationEnabled = false;
-	    	mCurrentLocation = mLocationClient.getLastLocation();
+	    	mCurrentLocation = ((MainActivity)getActivity()).getCurrentLocation();
 	    	if (mCurrentLocation != null) {
 	    		longitude = mCurrentLocation.getLongitude();
 	    		latitude = mCurrentLocation.getLatitude();
@@ -604,32 +668,6 @@ public class MainActivity extends ActionBarActivity implements
 	        });
 		    setListAdapter( mAdapter );
 		}
-
-	    private void showMessage(String messsage ) {
-	    	mInfoDialog.setMessage( messsage );
-	    	AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>() {				
-				@Override
-				protected void onPreExecute() {
-                    if (mInfoDialog != null) { mInfoDialog.show(); }
-				}
-					
-				@Override
-				protected Void doInBackground(Void... arg0) {
-					try { Thread.sleep( 3000 ); } 
-					catch (InterruptedException e) { 
-						e.printStackTrace();
-					}
-					return null;
-				}
-				
-				@Override
-				protected void onPostExecute(Void result) {
-                    try { mInfoDialog.dismiss();} 
-                    catch (IllegalArgumentException e) { e.printStackTrace(); }
-				}
-			};
-			task.execute((Void[])null);
-	    }
 
 	    private void saveNavigationDropListItem() {
 	    	if (getActivity() == null) { return; }

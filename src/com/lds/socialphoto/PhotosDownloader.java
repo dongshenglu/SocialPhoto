@@ -14,6 +14,7 @@ import android.net.Uri;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
+import android.util.Log;
 
 public class PhotosDownloader {	
     private Context mContext;
@@ -55,7 +56,9 @@ public class PhotosDownloader {
             buffer.flush();
             photoDetailData.thumbnailImage = buffer.toByteArray();
             
-        } catch (Exception e) { System.out.println(e.getMessage()); }
+        } catch (Exception e) { 
+        	if (e.getMessage() != null) { Log.e(TAG, e.getMessage()); } 
+        }
 		
 		Uri uri = saveToDataBase(photoDetailData);		
 		if (isFirstPhoto || isLastPhotoInPage) { 			
@@ -65,7 +68,9 @@ public class PhotosDownloader {
 			if (!uri.toString().isEmpty()) { retMsg.arg1 = RES_OK; } else { retMsg.arg1 = RES_NO_FOUND; }
 			Messenger messenger = (Messenger) intent.getExtras().get(PhotoDownloadService.MESSENGER);
 			try { messenger.send(retMsg); } 
-			catch (RemoteException e) { System.out.println(e.getMessage()); }
+			catch (RemoteException e) { 
+				if (e.getMessage() != null) { Log.e(TAG, e.getMessage()); } 
+			}
 		}
 	}
 
