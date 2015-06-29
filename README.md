@@ -1,7 +1,9 @@
 SocialPhoto
 ===========
 
-The application included the following features,
+The application is implemented for searching images stored on www.Flickr.com based on user's the current location. 
+
+It includes the following subfeatures,
 
 - A searchbox and list view for performing search and displaying search result
 
