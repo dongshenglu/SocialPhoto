@@ -3,7 +3,7 @@ SocialPhoto
 
 **Introduction**
 
-The application is implemented for searching images stored on www.Flickr.com based on user's the current location. 
+The application was implemented for searching images stored on www.Flickr.com based on user's the current location, and simply sharing them to user's socialnetwork via "ACTION_SEND" intent.
 
 It includes the following subfeatures,
 
@@ -25,12 +25,12 @@ then they are not shown in photo details view
 
 
 Support devices and SDK version
-- The application run on Android > 4, support SDK from 11 to 22
+- The application run on Android > 4, support SDK API level from 11 to 22
 - The application works on portrait and landscape mode.
 
 **Implementation brief**
 
-Application is used Executors API to manage thread pool to download images and other relevant information via Flickr REST API and stores the structured data in local SQLite. SQLiteOpenHelper is used to manage database. For thread safty reason, ContentProvider derived class was implemented to access database, so that application manipulates database with a single instance of database. 
+Application used Executors API to manage thread pool to download images and other relevant data via Flickr REST API and stores the structured data in local SQLite. SQLiteOpenHelper is used to manage database. For thread safty reason, a ContentProvider derived class was implemented, so that application manipulates database with a single instance of SQLite database. 
 
 With CursorLoader and SimpleCursorAdapter, data is loaded and shown in list view.
 
