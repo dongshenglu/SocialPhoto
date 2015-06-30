@@ -12,13 +12,13 @@ import android.content.Intent;
 
 public class PhotoWebService extends PhotosConcurrencyBaseService {
     private PhotosWebServiceHandler mWebServiceHandler;
-    private static boolean isShutDownExecutorService = false;
-    public static final int MAX_CONCURRENT_DOWNLOADS = 10;
-    public static ExecutorService WEBSERVICE_THREAD_POOL = null;
+    private static boolean sIsShutDownExecutorService = false;
+    private static final int MAX_CONCURRENT_DOWNLOADS = 10;
+    private static ExecutorService sWebServiceThreadPool = null;
 
     public PhotoWebService() {
-    	if (WEBSERVICE_THREAD_POOL == null) {
-    		WEBSERVICE_THREAD_POOL = Executors.newFixedThreadPool(
+    	if (sWebServiceThreadPool == null) {
+    		sWebServiceThreadPool = Executors.newFixedThreadPool(
 	                MAX_CONCURRENT_DOWNLOADS, new ThreadFactory(){
 	                    int counter = 0;
 	                    @Override
@@ -32,7 +32,7 @@ public class PhotoWebService extends PhotosConcurrencyBaseService {
 	                    }
 	                });
     	}
-        preStart(WEBSERVICE_THREAD_POOL);
+        preStart(sWebServiceThreadPool);
     }
 
     @Override
@@ -55,17 +55,17 @@ public class PhotoWebService extends PhotosConcurrencyBaseService {
     public void onDestroy() {
         this.stopService(new Intent(this, PhotoDownloadService.class));
         Log.i(TAG, "PhotoWebService destroyed");
-        if (isShutDownExecutorService) {
-        	WEBSERVICE_THREAD_POOL.shutdown();
-        	if (terminateThreadPool(WEBSERVICE_THREAD_POOL)) {
-        		WEBSERVICE_THREAD_POOL = null;
+        if (sIsShutDownExecutorService) {
+        	sWebServiceThreadPool.shutdown();
+        	if (terminateThreadPool(sWebServiceThreadPool)) {
+        		sWebServiceThreadPool = null;
             }
         }
         super.onDestroy();
     }
 
     public static void configureExecutorService(boolean isShutdown) {
-        isShutDownExecutorService = isShutdown;
+        sIsShutDownExecutorService = isShutdown;
         PhotoDownloadService.configureExecutorService(isShutdown);
     }
 }

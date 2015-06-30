@@ -14,13 +14,13 @@ import android.content.Intent;
 
 public class PhotoDownloadService extends PhotosConcurrencyBaseService {
     private PhotosDownloader mDownloader;
-    private static boolean isShutDownExecutorService = false;
-    public static final int MAX_CONCURRENT_DOWNLOADS = 30;
-    public static ExecutorService DOWNLOAD_THREAD_POOL = null;
+    private static boolean sIsShutDownExecutorService = false;
+    private static final int MAX_CONCURRENT_DOWNLOADS = 30;
+    private static ExecutorService sDownloadThreadPool = null;
 
     public PhotoDownloadService() {
-    	if (DOWNLOAD_THREAD_POOL == null) {
-	    	DOWNLOAD_THREAD_POOL = Executors.newFixedThreadPool(
+    	if (sDownloadThreadPool == null) {
+    		sDownloadThreadPool = Executors.newFixedThreadPool(
 	                MAX_CONCURRENT_DOWNLOADS, new ThreadFactory(){
 	                    int counter = 0;
 	                    @Override
@@ -34,7 +34,7 @@ public class PhotoDownloadService extends PhotosConcurrencyBaseService {
 	                    }
 	                });
     	}
-        preStart(DOWNLOAD_THREAD_POOL);
+        preStart(sDownloadThreadPool);
     }
 
     public static final String DOWNLOAD_FROM_URL = "from_url";
@@ -76,16 +76,16 @@ public class PhotoDownloadService extends PhotosConcurrencyBaseService {
     @Override
     public void onDestroy() {     
         Log.i(TAG, "PhotoDownloadService destroyed");
-        if (isShutDownExecutorService) {
-            DOWNLOAD_THREAD_POOL.shutdown();
-            if (terminateThreadPool(DOWNLOAD_THREAD_POOL)) {
-            	DOWNLOAD_THREAD_POOL = null;
+        if (sIsShutDownExecutorService) {
+        	sDownloadThreadPool.shutdown();
+            if (terminateThreadPool(sDownloadThreadPool)) {
+            	sDownloadThreadPool = null;
             }
         }
         super.onDestroy();
     }
 
     public static void configureExecutorService(boolean isShutdown) {
-        isShutDownExecutorService = isShutdown;
+        sIsShutDownExecutorService = isShutdown;
     }
 }
